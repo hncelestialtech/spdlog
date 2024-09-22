@@ -9,15 +9,71 @@
 
 #include <cassert>
 #include <spdlog/common.h>
+#include <pthread.h>
+#include <spdlog/details/cpuset.h>
+
+namespace utils {
+SPDLOG_INLINE void pthread_setname_np(pthread_t tid, const char *name) {
+#ifdef __APPLE__
+    pthread_setname_np(name);
+#elif defined(__linux__)
+    pthread_setname_np(tid, name);
+#endif
+}
+
+static int do_taskset(size_t setsize, cpu_set_t *set, pthread_t *pid_list, size_t pid_num)
+{
+    for (size_t i = 0; i < pid_num; ++i) {
+        if (pthread_setaffinity_np(pid_list[i], setsize, set) < 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+SPDLOG_INLINE int set_cpu_affinity(pthread_t *tids, size_t num_threads) {
+#ifdef __linux__
+    int ncpus;
+    const char *cpulist_env = getenv("LogCPUSet");
+    if (cpulist_env == NULL) {
+        return -1;
+    }
+    ncpus = get_max_number_of_cpus();
+    if (ncpus <= 0) {
+        fprintf(stderr, "Failed to get cpu nums\n");
+        return -1;
+    }
+    size_t setsize;
+    size_t nbits;
+    cpu_set_t *set = cpuset_alloc(ncpus, &setsize, &nbits);
+    if (set == NULL) {
+        fprintf(stderr, "Failed to alloc cpuset\n");
+        return -1;
+    }
+    if (cpulist_parse(cpulist_env, set, setsize, 0)) {
+        fprintf(stderr, "Failed to parse cpu list\n");
+        return -1;
+    }
+    return do_taskset(setsize, set, tids, num_threads);
+#else
+    return 0;
+#endif
+}
+}  // namespace utils
 
 namespace spdlog {
 namespace details {
+
+#define _TP_TASKNUM 3278
 
 SPDLOG_INLINE thread_pool::thread_pool(size_t q_max_items,
                                        size_t threads_n,
                                        std::function<void()> on_thread_start,
                                        std::function<void()> on_thread_stop)
     : q_(q_max_items) {
+    int worker_num = 0;
+    pthread_t process_id_list[_TP_TASKNUM];
+    std::string logger_prefix = "spdlog.worker";
     if (threads_n == 0 || threads_n > 1000) {
         throw_spdlog_ex(
             "spdlog::thread_pool(): invalid threads_n param (valid "
@@ -29,7 +85,16 @@ SPDLOG_INLINE thread_pool::thread_pool(size_t q_max_items,
             this->thread_pool::worker_loop_();
             on_thread_stop();
         });
+        auto pid = threads_.back().native_handle();
+        auto logger_name = logger_prefix + std::to_string(i);
+        process_id_list[worker_num++] = pid;
+        int ret = pthread_setname_np(pid, logger_name.c_str());
+        if (ret != 0) {
+            fprintf(stderr, "Failed to set thread name for %s\n", logger_name.c_str());
+        }
     }
+
+    ::utils::set_cpu_affinity(process_id_list, worker_num);
 }
 
 SPDLOG_INLINE thread_pool::thread_pool(size_t q_max_items,
@@ -38,8 +103,7 @@ SPDLOG_INLINE thread_pool::thread_pool(size_t q_max_items,
     : thread_pool(q_max_items, threads_n, on_thread_start, [] {}) {}
 
 SPDLOG_INLINE thread_pool::thread_pool(size_t q_max_items, size_t threads_n)
-    : thread_pool(
-          q_max_items, threads_n, [] {}, [] {}) {}
+    : thread_pool(q_max_items, threads_n, [] {}, [] {}) {}
 
 // message all threads to terminate gracefully join them
 SPDLOG_INLINE thread_pool::~thread_pool() {

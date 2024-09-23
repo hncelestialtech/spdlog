@@ -23,8 +23,6 @@
 #include <algorithm>
 #include <exception>
 
-using logger_ptr = std::shared_ptr<spdlog::logger>;
-
 namespace {
 inline std::string get_wall_time_str() {
     auto now = std::chrono::system_clock::now();
@@ -38,6 +36,7 @@ inline std::string get_wall_time_str() {
 
 namespace cel {
 namespace log {
+typedef std::shared_ptr<spdlog::logger> logger_ptr;
 static logger_ptr create_logger(int cpu_id,
                                 const std::string& name,
                                 std::string log_file_dir,
@@ -49,7 +48,7 @@ static logger_ptr create_logger(int cpu_id,
     }
 
     std::string cpu_id_str = std::to_string(cpu_id);
-    setenv("SPDLOG_CPU_ID", cpu_id_str.c_str(), 1);
+    setenv("CEL_SPDLOG_CPU_ID", cpu_id_str.c_str(), 1);
 
     if (log_file_dir.empty()) {
         log_file_dir = "./";

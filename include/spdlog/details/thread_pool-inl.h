@@ -34,7 +34,7 @@ static int do_taskset(size_t setsize, cpu_set_t *set, pthread_t *pid_list, size_
 SPDLOG_INLINE int set_cpu_affinity(pthread_t *tids, size_t num_threads) {
 #ifdef __linux__
     int ncpus;
-    const char *cpulist_env = getenv("LogCPUSet");
+    const char *cpulist_env = getenv("CEL_SPDLOG_CPU_ID");
     if (cpulist_env == NULL) {
         return -1;
     }

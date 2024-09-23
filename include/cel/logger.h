@@ -23,13 +23,6 @@
 #include <algorithm>
 #include <exception>
 
-#define SPDLOG_LEVEL spdlog::level::level_enum
-
-#define DEBUG SPDLOG_LEVEL::debug
-#define INFO SPDLOG_LEVEL::info
-#define WARNING SPDLOG_LEVEL::warn
-#define ERROR SPDLOG_LEVEL::err
-
 using logger_ptr = std::shared_ptr<spdlog::logger>;
 
 namespace {

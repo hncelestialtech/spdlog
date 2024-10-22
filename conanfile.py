@@ -8,7 +8,7 @@ class SpdlogConan(ConanFile):
     version = "1.12.0"  # Update this to match the current spdlog version
     license = "MIT"
     url = "https://github.com/hncelestialtech/spdlog"
-    description = "Fast C++ logging library"
+    description = "C++ logging library with cpu affinity support"
     topics = ("logging", "header-only", "c++")
     settings = "os", "compiler", "build_type", "arch"
     options = {

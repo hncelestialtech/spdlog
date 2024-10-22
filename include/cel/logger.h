@@ -34,8 +34,8 @@ inline std::string get_wall_time_str() {
 }
 }  // namespace
 
-namespace cel {
-namespace log {
+namespace Cel {
+namespace Log {
 typedef std::shared_ptr<spdlog::logger> logger_ptr;
 static logger_ptr create_logger(int cpu_id,
                                 const std::string& name,
@@ -89,5 +89,5 @@ static logger_ptr create_logger(int cpu_id,
 
     return logger;
 }
-}  // namespace log
-}  // namespace cel
+}  // namespace Log
+}  // namespace Cel
